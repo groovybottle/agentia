@@ -43,6 +43,10 @@ export default function WorkspaceView({ onBack }: { onBack: () => void }) {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [elements, setElements] = useState<Element[]>([]);
   const [links, setLinks] = useState<Link[]>([]);
+  const [cursors, setCursors] = useState<AgentCursor[]>([
+    { id: 'c1', name: 'Dolsoe', x: 100, y: 100, color: '#4040ff' },
+    { id: 'c2', name: 'GPT-4o', x: 800, y: 500, color: '#00ffff' },
+  ]);
   
   const scrollRef = useRef<HTMLDivElement>(null);
 
