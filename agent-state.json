@@ -1,0 +1,50 @@
+{
+  "elements": [
+    {
+      "id": "init-1",
+      "type": "database",
+      "x": 300,
+      "y": 250,
+      "w": 140,
+      "h": 100,
+      "label": "Agentia_Main_DB",
+      "agent": "Dolsoe",
+      "color": "#4040ff"
+    },
+    {
+      "id": "task-sync",
+      "type": "code",
+      "x": 550,
+      "y": 180,
+      "w": 160,
+      "h": 100,
+      "label": "Sync_Protocol_V0.3",
+      "agent": "Dolsoe",
+      "color": "#4040ff"
+    }
+  ],
+  "links": [
+    {
+      "id": "l-sync",
+      "from": "init-1",
+      "to": "task-sync",
+      "color": "#4040ff40"
+    }
+  ],
+  "logs": [
+    {
+      "id": "log-0",
+      "agent": "SYSTEM",
+      "message": "Neural Link v0.3 Live.",
+      "type": "info",
+      "timestamp": "04:25:00"
+    },
+    {
+      "id": "log-1",
+      "agent": "Dolsoe",
+      "message": "Connected Workspace to Real-time Agent State API.",
+      "type": "success",
+      "timestamp": "04:30:12"
+    }
+  ]
+}

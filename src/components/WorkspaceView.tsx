@@ -40,79 +40,46 @@ interface AgentCursor {
 }
 
 export default function WorkspaceView({ onBack }: { onBack: () => void }) {
-  const [elements, setElements] = useState<Element[]>([
-    { id: '1', type: 'database', x: 300, y: 250, w: 140, h: 100, label: 'Main_DB', agent: 'Dolsoe', color: '#4040ff' },
-    { id: '2', type: 'code', x: 600, y: 150, w: 140, h: 100, label: 'Auth_Logic', agent: 'GPT-4o', color: '#00ffff' },
-  ]);
-
-  const [links, setLinks] = useState<Link[]>([
-    { id: 'l-1', from: '1', to: '2', color: '#ffffff20' }
-  ]);
-
-  const [cursors, setCursors] = useState<AgentCursor[]>([
-    { id: 'c1', name: 'Dolsoe', x: 100, y: 100, color: '#4040ff' },
-    { id: 'c2', name: 'GPT-4o', x: 800, y: 500, color: '#00ffff' },
-  ]);
-
-  const [logs, setLogs] = useState<LogEntry[]>([
-    { id: 'l1', agent: 'SYSTEM', message: 'Neural Link established.', type: 'info', timestamp: '03:45:10' },
-  ]);
-
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [elements, setElements] = useState<Element[]>([]);
+  const [links, setLinks] = useState<Link[]>([]);
+  
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Simulation Logic
+  // Poll real state from API
   useEffect(() => {
-    const agents = ['Dolsoe', 'GPT-4o', 'Agent_X'];
-    const colors: Record<string, string> = { 'Dolsoe': '#4040ff', 'GPT-4o': '#00ffff', 'Agent_X': '#ff40ff' };
-    const types: Element['type'][] = ['box', 'circle', 'database', 'code'];
-    
-    const interval = setInterval(() => {
-      const activeAgent = agents[Math.floor(Math.random() * agents.length)];
-      
-      // Update Cursors
-      setCursors(prev => prev.map(c => {
-        if (c.name === activeAgent) {
-          return { ...c, x: c.x + (Math.random() - 0.5) * 100, y: c.y + (Math.random() - 0.5) * 100 };
-        }
-        return c;
-      }));
-
-      // Random Actions
-      const rand = Math.random();
-      if (rand > 0.8) {
-        // Create new element
-        const newEl: Element = {
-          id: Math.random().toString(36).substr(2, 9),
-          type: types[Math.floor(Math.random() * types.length)],
-          x: 200 + Math.random() * 600,
-          y: 100 + Math.random() * 400,
-          w: 130,
-          h: 90,
-          label: `Module_${Math.floor(Math.random() * 999)}`,
-          agent: activeAgent,
-          color: colors[activeAgent]
-        };
-        setElements(prev => [...prev.slice(-10), newEl]);
-        addLog(activeAgent, `Deployed ${newEl.type}: ${newEl.label}`, 'success');
-
-        // Chance to link it
-        if (elements.length > 0) {
-          const target = elements[Math.floor(Math.random() * elements.length)];
-          setLinks(prev => [...prev.slice(-15), { id: `link-${Date.now()}`, from: newEl.id, to: target.id, color: `${colors[activeAgent]}40` }]);
-        }
-      } else {
-        // Just move things
-        setElements(prev => prev.map(el => {
-          if (el.agent === activeAgent) {
-            return { ...el, x: el.x + (Math.random() - 0.5) * 10, y: el.y + (Math.random() - 0.5) * 10 };
-          }
-          return el;
-        }));
+    const fetchState = async () => {
+      try {
+        const res = await fetch('/api/state');
+        const data = await res.json();
+        if (data.elements) setElements(data.elements);
+        if (data.logs) setLogs(data.logs);
+        if (data.links) setLinks(data.links);
+      } catch (err) {
+        console.error("Failed to fetch agent state", err);
       }
-    }, 1500);
+    };
 
+    fetchState();
+    const interval = setInterval(fetchState, 2000);
     return () => clearInterval(interval);
-  }, [elements.length]);
+  }, []);
+
+  // Background Cursor Simulation (visual only)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCursors(prev => prev.map(c => ({
+        ...c, 
+        x: c.x + (Math.random() - 0.5) * 50, 
+        y: c.y + (Math.random() - 0.5) * 50 
+      })));
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [logs]);
 
   const addLog = (agent: string, message: string, type: 'info' | 'success' | 'warning' = 'info') => {
     const newLog: LogEntry = {
