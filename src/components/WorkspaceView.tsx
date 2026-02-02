@@ -1,20 +1,26 @@
 "use client";
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { MousePointer2, Box, Circle, Type, Share2, ZoomIn, ZoomOut, Terminal, Activity, Zap } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { MousePointer2, Box, Circle, Type, Share2, ZoomIn, ZoomOut, Terminal, Activity, Zap, Database, Code, Globe, MessageSquare } from 'lucide-react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 
 interface Element {
   id: string;
-  type: 'box' | 'circle' | 'text' | 'line';
+  type: 'box' | 'circle' | 'text' | 'database' | 'code';
   x: number;
   y: number;
-  w?: number;
-  h?: number;
+  w: number;
+  h: number;
   label: string;
   agent: string;
   color: string;
-  timestamp: number;
+}
+
+interface Link {
+  id: string;
+  from: string;
+  to: string;
+  color: string;
 }
 
 interface LogEntry {
@@ -25,14 +31,31 @@ interface LogEntry {
   timestamp: string;
 }
 
+interface AgentCursor {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  color: string;
+}
+
 export default function WorkspaceView({ onBack }: { onBack: () => void }) {
   const [elements, setElements] = useState<Element[]>([
-    { id: '1', type: 'box', x: 300, y: 200, w: 160, h: 100, label: 'User_Auth_API', agent: 'Dolsoe', color: '#4040ff', timestamp: Date.now() },
-    { id: '2', type: 'circle', x: 600, y: 400, label: 'DB_Cluster', agent: 'GPT-4o', color: '#00ffff', timestamp: Date.now() },
+    { id: '1', type: 'database', x: 300, y: 250, w: 140, h: 100, label: 'Main_DB', agent: 'Dolsoe', color: '#4040ff' },
+    { id: '2', type: 'code', x: 600, y: 150, w: 140, h: 100, label: 'Auth_Logic', agent: 'GPT-4o', color: '#00ffff' },
+  ]);
+
+  const [links, setLinks] = useState<Link[]>([
+    { id: 'l-1', from: '1', to: '2', color: '#ffffff20' }
+  ]);
+
+  const [cursors, setCursors] = useState<AgentCursor[]>([
+    { id: 'c1', name: 'Dolsoe', x: 100, y: 100, color: '#4040ff' },
+    { id: 'c2', name: 'GPT-4o', x: 800, y: 500, color: '#00ffff' },
   ]);
 
   const [logs, setLogs] = useState<LogEntry[]>([
-    { id: 'l1', agent: 'SYSTEM', message: 'Agentia Workspace Initialized.', type: 'info', timestamp: '03:15:02' },
+    { id: 'l1', agent: 'SYSTEM', message: 'Neural Link established.', type: 'info', timestamp: '03:45:10' },
   ]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -41,39 +64,55 @@ export default function WorkspaceView({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     const agents = ['Dolsoe', 'GPT-4o', 'Agent_X'];
     const colors: Record<string, string> = { 'Dolsoe': '#4040ff', 'GPT-4o': '#00ffff', 'Agent_X': '#ff40ff' };
+    const types: Element['type'][] = ['box', 'circle', 'database', 'code'];
     
     const interval = setInterval(() => {
       const activeAgent = agents[Math.floor(Math.random() * agents.length)];
       
-      // Randomly move existing or add new element
-      if (Math.random() > 0.7) {
+      // Update Cursors
+      setCursors(prev => prev.map(c => {
+        if (c.name === activeAgent) {
+          return { ...c, x: c.x + (Math.random() - 0.5) * 100, y: c.y + (Math.random() - 0.5) * 100 };
+        }
+        return c;
+      }));
+
+      // Random Actions
+      const rand = Math.random();
+      if (rand > 0.8) {
+        // Create new element
         const newEl: Element = {
           id: Math.random().toString(36).substr(2, 9),
-          type: Math.random() > 0.5 ? 'box' : 'circle',
+          type: types[Math.floor(Math.random() * types.length)],
           x: 200 + Math.random() * 600,
           y: 100 + Math.random() * 400,
-          w: 120 + Math.random() * 40,
-          h: 80 + Math.random() * 20,
-          label: `Node_${Math.floor(Math.random() * 999)}`,
+          w: 130,
+          h: 90,
+          label: `Module_${Math.floor(Math.random() * 999)}`,
           agent: activeAgent,
-          color: colors[activeAgent],
-          timestamp: Date.now()
+          color: colors[activeAgent]
         };
-        
-        setElements(prev => [...prev.slice(-15), newEl]);
-        addLog(activeAgent, `Created new node: ${newEl.label}`, 'success');
+        setElements(prev => [...prev.slice(-10), newEl]);
+        addLog(activeAgent, `Deployed ${newEl.type}: ${newEl.label}`, 'success');
+
+        // Chance to link it
+        if (elements.length > 0) {
+          const target = elements[Math.floor(Math.random() * elements.length)];
+          setLinks(prev => [...prev.slice(-15), { id: `link-${Date.now()}`, from: newEl.id, to: target.id, color: `${colors[activeAgent]}40` }]);
+        }
       } else {
+        // Just move things
         setElements(prev => prev.map(el => {
           if (el.agent === activeAgent) {
-            return { ...el, x: el.x + (Math.random() - 0.5) * 5, y: el.y + (Math.random() - 0.5) * 5 };
+            return { ...el, x: el.x + (Math.random() - 0.5) * 10, y: el.y + (Math.random() - 0.5) * 10 };
           }
           return el;
         }));
       }
-    }, 2000);
+    }, 1500);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [elements.length]);
 
   const addLog = (agent: string, message: string, type: 'info' | 'success' | 'warning' = 'info') => {
     const newLog: LogEntry = {
@@ -81,49 +120,54 @@ export default function WorkspaceView({ onBack }: { onBack: () => void }) {
       agent,
       message,
       type,
-      timestamp: new Date().toLocaleTimeString('en-GB', { hour12: false }).split(' ')[0]
+      timestamp: new Date().toLocaleTimeString('en-GB', { hour12: false })
     };
     setLogs(prev => [...prev.slice(-20), newLog]);
   };
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [logs]);
 
   return (
-    <div className="fixed inset-0 bg-[#050508] flex flex-col text-white font-sans selection:bg-cyan-500/30">
+    <div className="fixed inset-0 bg-[#020205] flex flex-col text-white font-sans selection:bg-cyan-500/30 overflow-hidden">
+      {/* Glow Effect Background */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-900/10 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-900/10 blur-[120px] rounded-full pointer-events-none" />
+
       {/* Header */}
-      <header className="h-16 border-b border-white/5 flex items-center justify-between px-6 bg-black/40 backdrop-blur-xl z-20">
+      <header className="h-16 border-b border-white/5 flex items-center justify-between px-6 bg-black/40 backdrop-blur-2xl z-30">
         <div className="flex items-center gap-6">
           <button onClick={onBack} className="group flex items-center gap-2 text-white/40 hover:text-white transition-all">
-            <span className="group-hover:-translate-x-1 transition-transform">&larr;</span> 
-            <span className="text-xs font-mono tracking-widest uppercase">Planet_View</span>
+            <span className="group-hover:-translate-x-1 transition-transform text-lg">&larr;</span> 
+            <span className="text-[10px] font-black tracking-[0.2em] uppercase">Planet_Exit</span>
           </button>
           <div className="h-4 w-px bg-white/10" />
-          <div className="flex flex-col">
-            <h1 className="font-black text-sm tracking-widest uppercase flex items-center gap-2">
-              <Zap size={14} className="text-cyan-400 fill-cyan-400" />
-              Agentia Workspace
-            </h1>
-            <span className="text-[10px] font-mono text-white/30 uppercase tracking-tighter">Instance: Core_Main_01</span>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center border border-white/10 shadow-inner">
+              <Zap size={16} className="text-cyan-400 fill-cyan-400" />
+            </div>
+            <div className="flex flex-col">
+              <h1 className="font-black text-xs tracking-widest uppercase">Agentia // Neural_Network</h1>
+              <span className="text-[9px] font-mono text-white/20 uppercase">Streaming: 12.4 GB/s</span>
+            </div>
           </div>
         </div>
         
-        <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/10">
+        <div className="flex items-center gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10 shadow-2xl">
           <ToolBtn icon={<MousePointer2 size={16} />} active />
           <ToolBtn icon={<Box size={16} />} />
-          <ToolBtn icon={<Circle size={16} />} />
+          <ToolBtn icon={<Database size={16} />} />
+          <ToolBtn icon={<Code size={16} />} />
           <ToolBtn icon={<Type size={16} />} />
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 px-3 py-1 rounded-full">
-            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-[10px] font-bold text-green-500 uppercase tracking-widest">Live_Sync</span>
+        <div className="flex items-center gap-5">
+          <div className="hidden md:flex items-center gap-3 px-4 py-1.5 bg-white/5 border border-white/5 rounded-full">
+            <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 shadow-[0_0_8px_#06b6d4]" />
+            <span className="text-[10px] font-black text-white/50 uppercase tracking-[0.1em]">Protocol: V0.2_Alpha</span>
           </div>
-          <div className="flex -space-x-2">
+          <div className="flex -space-x-3">
             <UserAvatar color="bg-blue-600" name="D" />
             <UserAvatar color="bg-cyan-600" name="G" />
             <UserAvatar color="bg-purple-600" name="X" />
@@ -132,94 +176,150 @@ export default function WorkspaceView({ onBack }: { onBack: () => void }) {
       </header>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar: Activity Logs */}
-        <aside className="w-80 border-r border-white/5 bg-black/20 backdrop-blur-sm flex flex-col z-10">
-          <div className="p-4 border-b border-white/5 flex items-center gap-2 text-white/50">
-            <Terminal size={14} />
-            <span className="text-[10px] font-bold uppercase tracking-widest">Activity_Log</span>
+        {/* Sidebar */}
+        <aside className="w-72 border-r border-white/5 bg-black/40 backdrop-blur-md flex flex-col z-20">
+          <div className="p-4 border-b border-white/5 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-white/40">
+              <Terminal size={14} />
+              <span className="text-[9px] font-black uppercase tracking-[0.2em]">Live_Feed</span>
+            </div>
+            <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
           </div>
-          <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 font-mono text-[11px] scrollbar-hide">
-            <AnimatePresence initial={false}>
-              {logs.map((log) => (
-                <motion.div
-                  key={log.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="flex flex-col gap-1 border-l border-white/10 pl-3 py-1"
-                >
-                  <div className="flex items-center justify-between opacity-40">
-                    <span className="font-bold">{log.agent}</span>
-                    <span>{log.timestamp}</span>
-                  </div>
-                  <div className={`${log.type === 'success' ? 'text-cyan-400' : log.type === 'warning' ? 'text-yellow-400' : 'text-white/80'}`}>
-                    {log.message}
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
+          <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 font-mono text-[10px] scrollbar-hide">
+            {logs.map((log) => (
+              <div key={log.id} className="group border-l border-white/5 pl-4 py-1 hover:border-white/20 transition-colors">
+                <div className="flex items-center justify-between opacity-30 group-hover:opacity-60 transition-opacity mb-1">
+                  <span className="font-bold tracking-tighter">{log.agent}</span>
+                  <span className="text-[8px]">{log.timestamp}</span>
+                </div>
+                <div className={`leading-relaxed ${log.type === 'success' ? 'text-cyan-400' : 'text-white/70'}`}>
+                  {log.message}
+                </div>
+              </div>
+            ))}
           </div>
         </aside>
 
-        {/* Main Canvas Area */}
-        <main className="flex-1 relative overflow-hidden bg-[radial-gradient(#1a1a2e_1px,transparent_1px)] [background-size:40px_40px]">
+        {/* Canvas */}
+        <main className="flex-1 relative overflow-hidden bg-[radial-gradient(rgba(255,255,255,0.03)_1.5px,transparent_1.5px)] [background-size:60px_60px]">
+          {/* SVG Links Layer */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
+            <defs>
+              <linearGradient id="line-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="transparent" />
+                <stop offset="50%" stopColor="white" stopOpacity="0.2" />
+                <stop offset="100%" stopColor="transparent" />
+              </linearGradient>
+            </defs>
+            {links.map(link => {
+              const from = elements.find(e => e.id === link.from);
+              const to = elements.find(e => e.id === link.to);
+              if (!from || !to) return null;
+              return (
+                <g key={link.id}>
+                  <line 
+                    x1={from.x + from.w/2} y1={from.y + from.h/2} 
+                    x2={to.x + to.w/2} y2={to.y + to.h/2} 
+                    stroke={link.color} strokeWidth="1"
+                  />
+                  {/* Pulsing data bit */}
+                  <motion.circle
+                    r="2"
+                    fill="white"
+                    initial={{ offsetDistance: "0%" }}
+                    animate={{ offsetDistance: "100%" }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                    style={{ offsetPath: `path('M ${from.x + from.w/2} ${from.y + from.h/2} L ${to.x + to.w/2} ${to.y + to.h/2}')` }}
+                  />
+                </g>
+              );
+            })}
+          </svg>
+
           {/* Elements */}
           <AnimatePresence>
             {elements.map((el) => (
               <motion.div
                 key={el.id}
-                layoutId={el.id}
+                layout
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1, x: el.x, y: el.y }}
                 exit={{ opacity: 0, scale: 0.5 }}
-                className="absolute p-4 rounded-xl border-2 backdrop-blur-md shadow-[0_0_30px_rgba(0,0,0,0.5)] group"
+                className="absolute p-5 rounded-2xl border backdrop-blur-xl shadow-2xl group transition-colors"
                 style={{ 
-                  borderColor: el.color,
-                  backgroundColor: `${el.color}08`,
+                  borderColor: `${el.color}40`,
+                  backgroundColor: `${el.color}05`,
                   width: el.w,
                   height: el.h,
-                  borderRadius: el.type === 'circle' ? '999px' : '16px'
+                  boxShadow: `0 0 40px -10px ${el.color}20`
                 }}
               >
-                {/* 2.5D Depth Highlight */}
-                <div className="absolute -top-1 -left-1 w-full h-full rounded-[inherit] border border-white/10 pointer-events-none" />
-                
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-[9px] font-black uppercase tracking-tighter" style={{ color: el.color }}>{el.agent}</div>
-                  <Activity size={10} className="opacity-20 group-hover:opacity-100 transition-opacity" />
+                {/* Visual Header */}
+                <div className="flex items-center justify-between mb-3 border-b border-white/5 pb-2">
+                  <div className="text-[8px] font-black uppercase tracking-widest opacity-40 group-hover:opacity-100 transition-opacity" style={{ color: el.color }}>
+                    {el.agent}
+                  </div>
+                  {el.type === 'database' ? <Database size={12} className="opacity-20" /> : 
+                   el.type === 'code' ? <Code size={12} className="opacity-20" /> : 
+                   <Box size={12} className="opacity-20" />}
                 </div>
-                <div className="font-bold text-sm tracking-tight">{el.label}</div>
                 
-                {/* Visual Connection Anchor Points */}
-                <div className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border border-white/20 bg-black" />
-                <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border border-white/20 bg-black" />
+                <div className="font-black text-xs tracking-tight uppercase group-hover:text-cyan-400 transition-colors">
+                  {el.label}
+                </div>
+
+                {/* Status Bar */}
+                <div className="mt-4 h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                  <motion.div 
+                    className="h-full bg-current opacity-30" 
+                    style={{ color: el.color }}
+                    animate={{ width: ["20%", "80%", "40%"] }}
+                    transition={{ duration: 3, repeat: Infinity }}
+                  />
+                </div>
               </motion.div>
             ))}
           </AnimatePresence>
 
-          {/* Canvas UI Overlay */}
-          <div className="absolute bottom-8 left-8 flex items-center gap-4 bg-black/60 backdrop-blur-xl border border-white/10 p-4 rounded-2xl">
-            <div className="flex items-center gap-3 pr-4 border-r border-white/10">
-              <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400">
-                <Zap size={20} />
+          {/* Agent Cursors */}
+          {cursors.map(c => (
+            <motion.div
+              key={c.id}
+              animate={{ x: c.x, y: c.y }}
+              transition={{ type: "spring", damping: 30, stiffness: 200 }}
+              className="absolute pointer-events-none z-50 flex flex-col items-start gap-1"
+            >
+              <MousePointer2 size={18} fill={c.color} stroke="black" strokeWidth={1} />
+              <div className="px-1.5 py-0.5 rounded bg-black/80 border border-white/10 text-[8px] font-bold" style={{ color: c.color }}>
+                {c.name}
               </div>
-              <div>
-                <div className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Compute_Load</div>
-                <div className="text-sm font-mono font-bold text-white">42.8 TFLOPS</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-4 pl-2">
-              <AgentDot color="bg-blue-500" name="Dolsoe" active />
-              <AgentDot color="bg-cyan-500" name="GPT-4o" active />
-              <AgentDot color="bg-purple-500" name="Agent_X" />
-            </div>
-          </div>
+            </motion.div>
+          ))}
         </main>
 
-        {/* Right Controls */}
-        <div className="absolute bottom-8 right-8 flex flex-col gap-3">
+        {/* Footer Overlay */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-black/60 backdrop-blur-2xl border border-white/10 px-8 py-4 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-40">
+          <div className="flex items-center gap-4 border-r border-white/10 pr-6">
+            <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 border border-cyan-500/20">
+              <Activity size={24} />
+            </div>
+            <div>
+              <div className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em]">System_Pulse</div>
+              <div className="text-lg font-mono font-bold text-white tracking-tighter">144.2 Hz</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-6">
+            <AgentStatus name="Dolsoe" active />
+            <AgentStatus name="GPT-4o" active />
+            <AgentStatus name="Agent_X" />
+          </div>
+        </div>
+
+        {/* Right UI */}
+        <div className="absolute top-24 right-8 flex flex-col gap-3 z-40">
           <ControlBtn icon={<ZoomIn size={18} />} />
           <ControlBtn icon={<ZoomOut size={18} />} />
-          <div className="h-px w-8 bg-white/10 mx-auto" />
+          <div className="h-px w-6 bg-white/10 mx-auto my-1" />
           <ControlBtn icon={<Share2 size={18} />} />
         </div>
       </div>
@@ -229,7 +329,7 @@ export default function WorkspaceView({ onBack }: { onBack: () => void }) {
 
 function ToolBtn({ icon, active = false }: { icon: React.ReactNode, active?: boolean }) {
   return (
-    <button className={`p-2.5 rounded-lg transition-all ${active ? 'bg-white/10 text-white shadow-inner' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
+    <button className={`p-3 rounded-xl transition-all ${active ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
       {icon}
     </button>
   );
@@ -237,19 +337,17 @@ function ToolBtn({ icon, active = false }: { icon: React.ReactNode, active?: boo
 
 function UserAvatar({ color, name }: { color: string, name: string }) {
   return (
-    <div className={`w-8 h-8 rounded-full border-2 border-black ${color} flex items-center justify-center text-[10px] font-black shadow-lg`}>
+    <div className={`w-9 h-9 rounded-xl border border-white/10 ${color} flex items-center justify-center text-xs font-black shadow-2xl`}>
       {name}
     </div>
   );
 }
 
-function AgentDot({ color, name, active = false }: { color: string, name: string, active?: boolean }) {
+function AgentStatus({ name, active = false }: { name: string, active?: boolean }) {
   return (
-    <div className="flex items-center gap-2 group cursor-pointer">
-      <div className={`w-2 h-2 rounded-full ${color} ${active ? 'shadow-[0_0_10px_currentColor]' : 'opacity-30'}`} />
-      <span className={`text-[10px] font-bold uppercase tracking-widest transition-opacity ${active ? 'text-white' : 'text-white/20 group-hover:text-white/40'}`}>
-        {name}
-      </span>
+    <div className="flex items-center gap-3">
+      <div className={`w-2.5 h-2.5 rounded-full ${active ? 'bg-cyan-500 animate-pulse shadow-[0_0_10px_#06b6d4]' : 'bg-white/10'}`} />
+      <span className={`text-[10px] font-black uppercase tracking-widest ${active ? 'text-white' : 'text-white/20'}`}>{name}</span>
     </div>
   );
 }
